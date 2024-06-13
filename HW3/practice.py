@@ -18,20 +18,37 @@ def extract_paper(paper_url):
 
     title = driver.find_element(By.CLASS_NAME, 'document-title').text
     
-    try:
-        cites_in_papers = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Papers')]").text.split(':')[-1].strip()
-    except:
-        cites_in_papers = None
-
-    try:
-        cites_in_patent = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Patents')]").text.split(':')[-1].strip()
-    except:
+    cites_in_papers = None
+    cites_in_patent = None
+    full_text_views = None
+    
+    cities = driver.find_elements(By.CLASS_NAME, 'document-banner-metric-count')
+    if len(cities) == 3:
+        cites_in_papers = cities[0].text
+        cites_in_patent = cities[1].text
+        full_text_views = cities[2].text
+    elif len(cities) == 2:
+        cites_in_papers = cities[0].text
         cites_in_patent = None
+        full_text_views = cities[1].text
+    elif len(cities) == 1 :
+        full_text_views = cities[0].text
+        cites_in_papers = None
+        cites_in_patent = None
+        
+    #     cites_in_papers = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Papers')]").text.split(':')[-1].strip()
+    # except:
+    #     cites_in_papers = None
 
-    try:
-        full_text_views = driver.find_element(By.XPATH, "//div[contains(text(),'Full Text Views')]").text.split(':')[-1].strip()
-    except:
-        full_text_views = None
+    # try:
+    #     cites_in_patent = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Patents')]").text.split(':')[-1].strip()
+    # except:
+    #     cites_in_patent = None
+
+    # try:
+    #     full_text_views = driver.find_element(By.XPATH, "//div[contains(text(),'Full Text Views')]").text.split(':')[-1].strip()
+    # except:
+    #     full_text_views = None
         
     publisher = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/section[2]/div/xpl-document-header/section/div[2]/div/div/div[1]/div/div[1]/div/div[1]/xpl-publisher/span/span/span/span[2]').text
     
@@ -156,16 +173,16 @@ def extract_from_multiple_pages(paper_urls):
     
     for page in paper_urls:
         for url in page:
-            # Navigate to the paper URL
-                driver.get(url)
-                
-                # Extract paper details (assuming this function exists)
-                paper_details = extract_paper(url)
-                papers.append(paper_details)
-                
-                # Go back to the previous page after extracting paper details
-                driver.back()
-    
+        # Navigate to the paper URL
+            driver.get(url)
+            
+            # Extract paper details (assuming this function exists)
+            paper_details = extract_paper(url)
+            papers.append(paper_details)
+            
+            # Go back to the previous page after extracting paper details
+            driver.back()
+
     return papers
 
 
