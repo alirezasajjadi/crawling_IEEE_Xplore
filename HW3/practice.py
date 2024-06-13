@@ -10,54 +10,187 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from selenium.webdriver import ActionChains
 
+def extract_paper(paper_url):
 
-def crawling_method(driver):
+    driver.get(paper_url)
 
-    wait_page_load(driver=driver)
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'document-abstract')))
 
-    title_Xpath = '//h3/a'
-    # WebDriverWait(driver, 20).until(
-    #     EC.presence_of_all_elements_located((By.XPATH, title_Xpath))
-    # )
-    original_window = driver.current_window_handle
-    assert len(driver.window_handles) == 1
+    title = driver.find_element(By.CLASS_NAME, 'document-title').text
+    
+    try:
+        cites_in_papers = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Papers')]").text.split(':')[-1].strip()
+    except:
+        cites_in_papers = None
 
-    article_links = driver.find_elements(By.XPATH, title_Xpath)
+    try:
+        cites_in_patent = driver.find_element(By.XPATH, "//div[contains(text(),'Cited by Patents')]").text.split(':')[-1].strip()
+    except:
+        cites_in_patent = None
 
-    processed_urls = set()  # avoid twice open article!
-
-    for idx, article in enumerate(article_links):
-        link = article.get_attribute('href')
+    try:
+        full_text_views = driver.find_element(By.XPATH, "//div[contains(text(),'Full Text Views')]").text.split(':')[-1].strip()
+    except:
+        full_text_views = None
         
-        if link in processed_urls:
-            continue
-        processed_urls.add(link)  # Add URL to processed set
+    publisher = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/section[2]/div/xpl-document-header/section/div[2]/div/div/div[1]/div/div[1]/div/div[1]/xpl-publisher/span/span/span/span[2]').text
+    
+    try:
+        DOI = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[2]/div[3]/div[2]/div[1]/a').text
+    except:
+        DOI = None
+    
+    
+    data_of_publication = None
 
-        driver.switch_to.new_window('tab')
-        driver.get(link)
+    try:
+        data_of_publication = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[2]/div[3]/div[1]/div[1]').text.split(":")[-1]
+    except:
+        pass
 
-        # wait to fully load page, use time.sleep(xxx) if it wasted to time
-        wait_page_load(driver=driver)
+    if data_of_publication is None:
+        try:
+            data_of_publication = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[3]/div[4]/div[1]/div[2]').text.split(":")[-1]
+        except:
+            pass
 
-        time.sleep(2)
+    if data_of_publication is None:
+        try:
+            data_of_publication = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[2]/div[2]/div[1]/div[1]').text.split(":")[-1]
+        except:
+            pass
+
+    try:
+        abstract = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[2]/div[1]/div/div/div').text
+    except:
+        abstract = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[3]/div[1]/div/div/div').text
+    
+    published_in = None
+    try:
+        published_in = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[2]/div[2]/a')
+    except:
+        pass
+    
+    if published_in is None:
+        try :
+            published_in = driver.find_element(By.XPATH, '//*[@id="xplMainContentLandmark"]/div/xpl-document-details/div/div[1]/div/div[2]/section/div[2]/div/xpl-document-abstract/section/div[3]/div[3]/a')
+        except:
+            pass
+    
+    published_in_link = None
+    published_in_text = None
+    
+    if published_in is not None:
+        published_in_link = published_in.get_attribute('href')
+        published_in_text = published_in.text
 
 
+    authors = []
+    try :
+        accordion_header = driver.find_element(By.ID, 'authors-header')
+        accordion_header.click()
+
+        WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, 'authors')))
+
+            # Find all author elements
+        try : 
+            author_elements = driver.find_elements(By.CSS_SELECTOR, '.authors-accordion-container')
 
 
-        """TODO"""
-        """example:"""
-        article_title = driver.find_element(By.XPATH, '//h1').text
-        print("Title:", article_title)
+            # Iterate through each author element to extract name and university
+            for author_element in author_elements:
+                author_name_element = author_element.find_element(By.CSS_SELECTOR, 'a span')
+                author_name = author_name_element.text.strip()
+                
+                university_element = author_element.find_element(By.CSS_SELECTOR, 'div:nth-child(2)')
+                university = university_element.text.strip()
+                author_info = {
+                    "name": author_name,
+                    "from": university
+                }
+                authors.append(author_info)
+        except :
+            authors = None
+    except:
+        authors = None
+
+ 
+    tab_element = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.ID, 'keywords-header'))
+    )
+    tab_element.click()
+    
+    keywords_container = driver.find_element(By.CLASS_NAME, 'doc-keywords-list')
+
+    # Extract IEEE Keywords
+    ieee_keywords = []
+    ieee_keywords_elements = keywords_container.find_elements(By.XPATH, "//strong[text()='IEEE Keywords']/following-sibling::ul/li/a")
+    ieee_keywords = [element.text.strip() for element in ieee_keywords_elements if element.text.strip() != '']
+
+    # Extract Author Keywords
+    author_keywords = []
+    author_keywords_elements = keywords_container.find_elements(By.XPATH, "//strong[text()='Author Keywords']/following-sibling::ul/li/a")
+    author_keywords = [element.text.strip() for element in author_keywords_elements if element.text.strip() != '']
+    
+    print(title)
+
+    return {
+        "title": title,
+        # "Page(s)": pages,
+        "Cites in Papers": cites_in_papers,
+        "Cites in Patent": cites_in_patent,
+        "Full Text Views": full_text_views,
+        "Publisher": publisher,
+        "DOI": DOI,
+        "Date of Publication": data_of_publication,
+        "Abstract": abstract,
+        "published in" :[{"name": published_in_text, "link": published_in_link}],
+        "Authors": authors,
+        "IEEE keywords": ieee_keywords,
+        "Author Keywords": author_keywords
+    }   
 
 
+def extract_from_multiple_pages(paper_urls):
+    papers = []
+    
+    for page in paper_urls:
+        for url in page:
+            # Navigate to the paper URL
+                driver.get(url)
+                
+                # Extract paper details (assuming this function exists)
+                paper_details = extract_paper(url)
+                papers.append(paper_details)
+                
+                # Go back to the previous page after extracting paper details
+                driver.back()
+    
+    return papers
 
 
-
-        driver.close()
-        driver.switch_to.window(original_window)
-
-    return driver
-
+def get_urls(num_pages):
+    paper_urls = []
+    current_page = 1
+    
+    while current_page <= num_pages:
+        print(current_page)
+        # Find all paper elements on the current page
+        paper_elements = driver.find_elements(By.XPATH, "//a[@class='fw-bold']")
+        
+        # Capture URLs of all papers on this page
+        paper_urls.append([paper_element.get_attribute('href') for paper_element in paper_elements if "courses" not in paper_element.get_attribute('href')])
+        # Check if there's a next page button
+        try:
+            next_button = driver.find_element(By.XPATH, "//*[contains(@class, 'stats-Pagination_arrow_next')]")
+            next_button.click()
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, 'List-results-items')))
+            current_page += 1
+        except:
+            print("No more pages or next button not found.")
+            break
+    
+    return paper_urls
 
 def wait_page_load(driver):
     """wait until 'Feedbak' button appeared"""
@@ -76,29 +209,14 @@ if __name__ == "__main__":
         element = driver.find_element(By.XPATH, search_Xpath)
         element.send_keys("Blockchain")
         element.send_keys(Keys.RETURN)
-        
-        wait_page_load(driver=driver)
-
-        driver = crawling_method(driver=driver)
-
-        print("hey")
-
-        # //*[@id="xplMainContent"]/div[2]/div[2]/xpl-paginator/div[2]/ul/li[2]/button
-        next_page_buttons_xpath = '//*[@id="xplMainContent"]/div[2]/div[2]/xpl-paginator/div[2]/ul/li'
-        next_page_buttons = driver.find_elements(By.XPATH, next_page_buttons_xpath)
-
-        # iterate over pages
-        for i in range(0,5):
-            ActionChains(driver).move_to_element(next_page_buttons[i]).perform()
-            next_page_buttons[i].click()
-
-            wait_page_load(driver=driver)
-
-            driver = crawling_method(driver=driver)
-
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'List-results-items')))
+        urls = get_urls(5)
+        papers = extract_from_multiple_pages(urls)
+        print(papers)
+                
     except Exception as e:
         print('error:\n', e)  
-
+        
     driver.quit()
 
 
